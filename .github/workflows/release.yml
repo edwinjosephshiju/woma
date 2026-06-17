@@ -67,7 +67,7 @@ jobs:
       - name: Configure and Build
         shell: cmd
         run: |
-          call PCbuild\build.bat -e -p x64
+          call PCbuild\build.bat -e -p x64 "/p:PlatformToolset=v143"
 
       - name: Package Release
         shell: cmd
