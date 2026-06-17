@@ -92,15 +92,15 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <PreprocessorDefinitions>Py_BUILD_CORE;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(PySourcePath)llama.cpp\include;$(PySourcePath)llama.cpp\ggml\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(opensslIncludeDir);$(PySourcePath)llama.cpp\include;$(PySourcePath)llama.cpp\ggml\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <StackReserveSize Condition="$(Configuration) != 'Debug'">2000000</StackReserveSize>
       <StackReserveSize Condition="$(Configuration) == 'Debug'">8000000</StackReserveSize>
       <StackReserveSize Condition="$(Configuration) == 'PGInstrument'">8000000</StackReserveSize>
-      <AdditionalLibraryDirectories>$(PySourcePath)llama.cpp\build\bin\$(Configuration)\;$(PySourcePath)llama.cpp\build\src\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>llama.lib;ggml.lib;ggml-base.lib;ggml-cpu.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(opensslOutDir);$(PySourcePath)llama.cpp\build\bin\$(Configuration)\;$(PySourcePath)llama.cpp\build\src\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libcrypto.lib;llama.lib;ggml.lib;ggml-base.lib;ggml-cpu.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
