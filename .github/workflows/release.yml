@@ -45,9 +45,6 @@ jobs:
   build-windows:
     name: Build Windows
     runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,29 +55,27 @@ jobs:
           msystem: MINGW64
           update: true
           install: >-
-            git
-            make
-            cmake
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-zlib
-            mingw-w64-x86_64-openssl
-            mingw-w64-x86_64-libffi
-            mingw-w64-x86_64-bzip2
-            mingw-w64-x86_64-sqlite3
-            mingw-w64-x86_64-xz
-            curl
+            mingw-w64-x86_64-binutils
+
+      - name: Forge MSVC Object File
+        shell: msys2 {0}
+        run: |
+          mkdir -p PCbuild/amd64
+          objcopy -I binary -O pe-x86-64 -B i386:x86-64 model.gguf PCbuild/amd64/model.obj
 
       - name: Configure and Build
+        shell: cmd
         run: |
-          chmod +x configure config.status config.guess config.sub install-sh
-          ./configure
-          make -j$(nproc)
+          call PCbuild\build.bat -e -p x64
 
       - name: Package Release
+        shell: cmd
         run: |
-          mkdir -p release-woma
-          make install DESTDIR=$(pwd)/release-woma
-          tar -a -c -f woma-windows-x86_64.zip -C release-woma .
+          mkdir release-woma
+          xcopy PCbuild\amd64\woma*.exe release-woma\ /Y
+          xcopy PCbuild\amd64\python*.dll release-woma\ /Y
+          xcopy PCbuild\amd64\vcruntime*.dll release-woma\ /Y
+          powershell Compress-Archive -Path "release-woma\*" -DestinationPath "woma-windows-x86_64.zip"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

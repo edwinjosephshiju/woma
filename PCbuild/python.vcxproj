@@ -113,6 +113,9 @@
     <ClCompile Include="..\Programs\python.c" />
   </ItemGroup>
   <ItemGroup>
+    <Object Include="amd64\model.obj" Condition="'$(Platform)' == 'x64'" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="pythoncore.vcxproj">
       <Project>{cf7ac3d1-e2df-41d2-bea6-1e2556cdea26}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>

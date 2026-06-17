@@ -3383,7 +3383,7 @@ static struct PyModuleDef sysmodule = {
 #define SET_SYS_FROM_STRING(key, value) \
         SET_SYS(key, PyUnicode_FromString(value))
 
-#define WOMA_VERSION_STRING "WomaPython 1.0.0 (AI-Enhanced Runtime)"
+#define WOMA_VERSION_STRING "3.12.13+ (WomaPython 1.0.0 AI-Enhanced Runtime)"
 
 static PyStatus
 _PySys_InitCore(PyThreadState *tstate, PyObject *sysdict)
