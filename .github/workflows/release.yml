@@ -1,0 +1,86 @@
+name: WomaPython Release Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo ./.github/workflows/posix-deps-apt.sh
+          sudo apt-get install -y cmake curl gcc g++ make
+
+      - name: Configure and Build
+        run: |
+          ./configure
+          make -j$(nproc)
+
+      - name: Package Release
+        run: |
+          mkdir -p release-woma
+          make install DESTDIR=$(pwd)/release-woma
+          tar -czvf woma-linux-x86_64.tar.gz -C release-woma .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: woma-linux
+          path: woma-linux-x86_64.tar.gz
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            make
+            cmake
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-libffi
+            mingw-w64-x86_64-bzip2
+            mingw-w64-x86_64-sqlite3
+            mingw-w64-x86_64-xz
+            curl
+
+      - name: Configure and Build
+        run: |
+          ./configure
+          make -j$(nproc)
+
+      - name: Package Release
+        run: |
+          mkdir -p release-woma
+          make install DESTDIR=$(pwd)/release-woma
+          tar -a -c -f woma-windows-x86_64.zip -C release-woma .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: woma-windows
+          path: woma-windows-x86_64.zip
