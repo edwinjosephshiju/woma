@@ -1,4 +1,6 @@
 model.gguf
 model.o
-woma
-python
+/woma
+/woma.exe
+/python
+/python.exe

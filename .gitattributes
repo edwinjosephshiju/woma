@@ -93,3 +93,4 @@ Python/stdlib_module_names.h                        generated
 Tools/peg_generator/pegen/grammar_parser.py         generated
 aclocal.m4                                          generated
 configure                                           generated
+*.sh text eol=lf
