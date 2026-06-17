@@ -60,6 +60,7 @@ jobs:
       - name: Forge MSVC Object File
         shell: msys2 {0}
         run: |
+          curl -L -o model.gguf https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q5_k_m.gguf
           mkdir -p PCbuild/amd64
           objcopy -I binary -O pe-x86-64 -B i386:x86-64 model.gguf PCbuild/amd64/model.obj
 
