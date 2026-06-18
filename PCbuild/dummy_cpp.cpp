@@ -5,7 +5,7 @@
 #include <regex>
 #include <string>
 
-void _woma_dummy_cpp_force_link() {
+extern "C" void _woma_dummy_cpp_force_link() {
     std::regex dummy_re(".*");
     std::string dummy_str = "dummy";
 }
