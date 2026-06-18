@@ -100,7 +100,8 @@
       <StackReserveSize Condition="$(Configuration) == 'Debug'">8000000</StackReserveSize>
       <StackReserveSize Condition="$(Configuration) == 'PGInstrument'">8000000</StackReserveSize>
       <AdditionalLibraryDirectories>$(opensslOutDir);$(PySourcePath)llama.cpp\build\bin\$(Configuration)\;$(PySourcePath)llama.cpp\build\src\$(Configuration)\;$(PySourcePath)llama.cpp\build\ggml\src\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libcrypto.lib;llama.lib;ggml.lib;ggml-base.lib;ggml-cpu.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Configuration)' == 'Debug'">msvcprtd.lib;libcrypto.lib;llama.lib;ggml.lib;ggml-base.lib;ggml-cpu.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="'$(Configuration)' != 'Debug'">msvcprt.lib;libcrypto.lib;llama.lib;ggml.lib;ggml-base.lib;ggml-cpu.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
