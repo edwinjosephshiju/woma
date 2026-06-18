@@ -45,6 +45,7 @@ jobs:
           path: woma-linux-x86_64.tar.gz
 
   build-windows:
+    if: false
     name: Build Windows
     runs-on: windows-latest
     steps:
@@ -88,7 +89,7 @@ jobs:
 
   create-release:
     name: Create Release
-    needs: [build-linux, build-windows]
+    needs: [build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -107,4 +108,3 @@ jobs:
           prerelease: false
           files: |
             artifacts/woma-linux/woma-linux-x86_64.tar.gz
-            artifacts/woma-windows/woma-windows-x86_64.zip
