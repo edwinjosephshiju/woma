@@ -1,0 +1,64 @@
+name: WomaPython Linux Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo bash ./.github/workflows/posix-deps-apt.sh
+          sudo apt-get install -y cmake curl gcc g++ make lld
+
+      - name: Configure and Build
+        env:
+          WOMA_BUILD_RELEASE: "1"
+        run: |
+          chmod +x configure config.status config.guess config.sub install-sh
+          ./configure LDFLAGS="-fuse-ld=lld"
+          make -j$(nproc)
+
+      - name: Package Release
+        run: |
+          mkdir -p release-woma
+          make install DESTDIR=$(pwd)/release-woma
+          chmod +x build_deb.sh
+          ./build_deb.sh
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: woma-linux
+          path: woma-linux-x86_64.deb
+
+  create-release:
+    name: Create Release
+    needs: [build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v3.12.13
+          name: WomaPython 3.12.13
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/woma-linux/woma-linux-x86_64.deb

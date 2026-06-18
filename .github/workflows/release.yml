@@ -11,39 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  build-linux:
-    name: Build Linux
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
-      - name: Install dependencies
-        run: |
-          sudo bash ./.github/workflows/posix-deps-apt.sh
-          sudo apt-get install -y cmake curl gcc g++ make lld
-
-      - name: Configure and Build
-        env:
-          WOMA_BUILD_RELEASE: "1"
-        run: |
-          chmod +x configure config.status config.guess config.sub install-sh
-          ./configure LDFLAGS="-fuse-ld=lld"
-          make -j$(nproc)
-
-      - name: Package Release
-        run: |
-          mkdir -p release-woma
-          make install DESTDIR=$(pwd)/release-woma
-          chmod +x build_deb.sh
-          ./build_deb.sh
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: woma-linux
-          path: woma-linux-x86_64.deb
 
   build-windows:
     name: Build Windows
@@ -86,7 +54,7 @@ jobs:
 
   create-release:
     name: Create Release
-    needs: [build-linux, build-windows]
+    needs: [build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -104,5 +72,4 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            artifacts/woma-linux/woma-linux-x86_64.deb
             artifacts/woma-windows/woma-windows-x86_64-installer.exe
