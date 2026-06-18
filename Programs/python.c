@@ -7,6 +7,10 @@
 #include <ctype.h>
 #include "llama.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 // ----------------------------------------------------------------------------
 // Phase 3: Hash Generation & Verification
 // ----------------------------------------------------------------------------
@@ -90,21 +94,23 @@ char* run_llama_transpilation(const char *woma_code) {
     struct llama_model_params model_params = llama_model_default_params();
     model_params.n_gpu_layers = 99; // Offload to RTX 4050 (CUDA) if LLAMA_CUBLAS=1
     
-    extern unsigned char _binary_model_gguf_start[];
-    extern unsigned char _binary_model_gguf_end[];
-    size_t model_size = _binary_model_gguf_end - _binary_model_gguf_start;
+    char tmp_model_path[1024];
+#ifdef _WIN32
+    GetModuleFileNameA(NULL, tmp_model_path, sizeof(tmp_model_path));
+    char *last_slash = strrchr(tmp_model_path, '\\');
+    if (last_slash) {
+        strcpy(last_slash + 1, "model.gguf");
+    } else {
+        strcpy(tmp_model_path, "model.gguf");
+    }
+#else
+    strcpy(tmp_model_path, "/usr/share/woma/model.gguf");
+#endif
 
-    const char *tmp_model_path = "/tmp/.woma_model.gguf";
     struct stat st;
-    if (stat(tmp_model_path, &st) != 0 || st.st_size != model_size) {
-        FILE *f = fopen(tmp_model_path, "wb");
-        if (f) {
-            fwrite(_binary_model_gguf_start, 1, model_size, f);
-            fclose(f);
-        } else {
-            fprintf(stderr, "FATAL: Failed to write embedded AI model to %s\n", tmp_model_path);
-            exit(1);
-        }
+    if (stat(tmp_model_path, &st) != 0) {
+        fprintf(stderr, "FATAL: AI model not found at %s. Please ensure Woma is properly installed.\n", tmp_model_path);
+        exit(1);
     }
 
     struct llama_model *model = llama_model_load_from_file(tmp_model_path, model_params);

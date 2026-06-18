@@ -36,16 +36,16 @@ jobs:
         run: |
           mkdir -p release-woma
           make install DESTDIR=$(pwd)/release-woma
-          tar -czvf woma-linux-x86_64.tar.gz -C release-woma .
+          chmod +x build_deb.sh
+          ./build_deb.sh
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: woma-linux
-          path: woma-linux-x86_64.tar.gz
+          path: woma-linux-x86_64.deb
 
   build-windows:
-    if: false
     name: Build Windows
     runs-on: windows-latest
     steps:
@@ -60,12 +60,8 @@ jobs:
           install: >-
             mingw-w64-x86_64-binutils
 
-      - name: Forge MSVC Object File
-        shell: msys2 {0}
-        run: |
-          curl -L -o model.gguf https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q5_k_m.gguf
-          mkdir -p PCbuild/amd64
-          objcopy -I binary -O pe-x86-64 -B i386:x86-64 model.gguf PCbuild/amd64/model.obj
+      - name: Install NSIS
+        run: choco install nsis
 
       - name: Configure and Build
         shell: cmd
@@ -79,17 +75,17 @@ jobs:
           xcopy PCbuild\amd64\woma*.exe release-woma\ /Y
           xcopy PCbuild\amd64\python*.dll release-woma\ /Y
           xcopy PCbuild\amd64\vcruntime*.dll release-woma\ /Y
-          powershell Compress-Archive -Path "release-woma\*" -DestinationPath "woma-windows-x86_64.zip"
+          makensis woma_installer.nsi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: woma-windows
-          path: woma-windows-x86_64.zip
+          path: woma-windows-x86_64-installer.exe
 
   create-release:
     name: Create Release
-    needs: [build-linux]
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -98,13 +94,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-      
-      - name: Split large artifacts
-        run: |
-          cd artifacts/woma-linux
-          split -b 1500M woma-linux-x86_64.tar.gz woma-linux-x86_64.tar.gz.part
-          rm woma-linux-x86_64.tar.gz
-          ls -lh
           
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -114,4 +103,5 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            artifacts/woma-linux/woma-linux-x86_64.tar.gz.part*
+            artifacts/woma-linux/woma-linux-x86_64.deb
+            artifacts/woma-windows/woma-windows-x86_64-installer.exe

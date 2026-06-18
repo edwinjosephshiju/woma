@@ -114,8 +114,7 @@
     <ClCompile Include="..\Programs\python.c" />
   </ItemGroup>
   <ItemGroup>
-    <Object Include="amd64\model.obj" Condition="'$(Platform)' == 'x64' and Exists('amd64\model.obj')" />
-    <ClCompile Include="dummy_model.c" Condition="!('$(Platform)' == 'x64' and Exists('amd64\model.obj'))" />
+
     <ClCompile Include="dummy_cpp.cpp" />
   </ItemGroup>
   <ItemGroup>
