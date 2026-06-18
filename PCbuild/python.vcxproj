@@ -127,6 +127,7 @@
   <Target Name="BuildLlamaStatic" BeforeTargets="Link">
     <Exec Command='cmake -S "$(PySourcePath)llama.cpp" -B "$(PySourcePath)llama.cpp\build" -DBUILD_SHARED_LIBS=ON' />
     <Exec Command='cmake --build "$(PySourcePath)llama.cpp\build" --config $(Configuration)' />
+    <Exec Command='xcopy /Y "$(PySourcePath)llama.cpp\build\bin\$(Configuration)\*.dll" "$(OutDir)"' />
   </Target>
   <Target Name="GeneratePyBuildDirTxt" AfterTargets="Link">
     <Message Text="Generating $(OutDir)pybuilddir.txt" />
