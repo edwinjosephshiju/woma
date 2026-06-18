@@ -99,6 +99,13 @@ jobs:
         with:
           path: artifacts
       
+      - name: Split large artifacts
+        run: |
+          cd artifacts/woma-linux
+          split -b 1500M woma-linux-x86_64.tar.gz woma-linux-x86_64.tar.gz.part
+          rm woma-linux-x86_64.tar.gz
+          ls -lh
+          
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -107,4 +114,4 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            artifacts/woma-linux/woma-linux-x86_64.tar.gz
+            artifacts/woma-linux/woma-linux-x86_64.tar.gz.part*
