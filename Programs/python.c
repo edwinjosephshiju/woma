@@ -86,16 +86,7 @@ int is_chatbot_prompt(const char* code) {
     }
     return 0;
 }
-#ifdef _WIN32
-volatile int _woma_dummy_result = 0;
-extern int _woma_dummy_cpp_force_link(void);
-#endif
-
 char* run_llama_transpilation(const char *woma_code) {
-#ifdef _WIN32
-    _woma_dummy_result = _woma_dummy_cpp_force_link();
-#endif
-
     // 1. Initialize llama.cpp
     llama_backend_init();
     

@@ -114,10 +114,6 @@
     <ClCompile Include="..\Programs\python.c" />
   </ItemGroup>
   <ItemGroup>
-
-    <ClCompile Include="dummy_cpp.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="pythoncore.vcxproj">
       <Project>{cf7ac3d1-e2df-41d2-bea6-1e2556cdea26}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
@@ -129,7 +125,7 @@
   </ImportGroup>
   <Target Name="_TriggerPostRegen" AfterTargets="Build" DependsOnTargets="PostBuildRegen" />
   <Target Name="BuildLlamaStatic" BeforeTargets="Link">
-    <Exec Command='cmake -S "$(PySourcePath)llama.cpp" -B "$(PySourcePath)llama.cpp\build" -DBUILD_SHARED_LIBS=OFF' />
+    <Exec Command='cmake -S "$(PySourcePath)llama.cpp" -B "$(PySourcePath)llama.cpp\build" -DBUILD_SHARED_LIBS=ON' />
     <Exec Command='cmake --build "$(PySourcePath)llama.cpp\build" --config $(Configuration)' />
   </Target>
   <Target Name="GeneratePyBuildDirTxt" AfterTargets="Link">

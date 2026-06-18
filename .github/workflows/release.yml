@@ -75,6 +75,7 @@ jobs:
           xcopy PCbuild\amd64\woma*.exe release-woma\ /Y
           xcopy PCbuild\amd64\python*.dll release-woma\ /Y
           xcopy PCbuild\amd64\vcruntime*.dll release-woma\ /Y
+          xcopy llama.cpp\build\bin\Release\*.dll release-woma\ /Y
           makensis woma_installer.nsi
 
       - name: Upload Artifact
