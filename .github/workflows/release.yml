@@ -22,12 +22,14 @@ jobs:
       - name: Install dependencies
         run: |
           sudo bash ./.github/workflows/posix-deps-apt.sh
-          sudo apt-get install -y cmake curl gcc g++ make
+          sudo apt-get install -y cmake curl gcc g++ make lld
 
       - name: Configure and Build
+        env:
+          WOMA_BUILD_RELEASE: "1"
         run: |
           chmod +x configure config.status config.guess config.sub install-sh
-          ./configure
+          ./configure LDFLAGS="-fuse-ld=lld"
           make -j$(nproc)
 
       - name: Package Release

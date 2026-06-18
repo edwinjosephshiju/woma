@@ -2991,7 +2991,13 @@ llama.cpp/build/src/libllama.a:
 	fi && cmake --build build -j$$(nproc)
 
 model.gguf:
-	curl -L -o model.gguf https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q5_k_m.gguf
+	@if [ "$(WOMA_BUILD_RELEASE)" = "1" ]; then \
+		echo "Downloading real model.gguf..."; \
+		curl -L -o model.gguf https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q5_k_m.gguf; \
+	else \
+		echo "Creating dummy model.gguf for CI/testing..."; \
+		echo "dummy" > model.gguf; \
+	fi
 
 model.o: model.gguf
 	ld -r -b binary -o model.o model.gguf
