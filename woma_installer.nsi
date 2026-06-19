@@ -21,8 +21,7 @@ Section "Install Files" SecInstall
   ; Copy all files from the release directory
   File /r "release-woma\*"
   
-  ; Add to system PATH using PowerShell
-  ExecWait 'powershell.exe -NoProfile -Command "$p = [Environment]::GetEnvironmentVariable(''Path'', [EnvironmentVariableTarget]::Machine); if ($p -notmatch [regex]::Escape(''$INSTDIR'')) { [Environment]::SetEnvironmentVariable(''Path'', $p + '';$INSTDIR'', [EnvironmentVariableTarget]::Machine) }"'
+  ExecWait `powershell.exe -NoProfile -Command "$$p = [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::Machine); if ($$p -notmatch [regex]::Escape('$INSTDIR')) { [Environment]::SetEnvironmentVariable('Path', $$p + ';$INSTDIR', [EnvironmentVariableTarget]::Machine) }"`
 
 SectionEnd
 
