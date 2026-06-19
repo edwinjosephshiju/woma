@@ -86,8 +86,14 @@ int is_chatbot_prompt(const char* code) {
     }
     return 0;
 }
-char* run_llama_transpilation(const char *woma_code) {
-    // 1. Initialize llama.cpp
+
+static struct llama_model *global_model = NULL;
+static const struct llama_vocab *global_vocab = NULL;
+static struct llama_context_params global_ctx_params;
+
+static void get_woma_ai_context() {
+    if (global_model) return;
+    
     llama_backend_init();
     
     struct llama_model_params model_params = llama_model_default_params();
@@ -112,19 +118,50 @@ char* run_llama_transpilation(const char *woma_code) {
         exit(1);
     }
 
-    struct llama_model *model = llama_model_load_from_file(tmp_model_path, model_params);
-    if (!model) {
+    global_model = llama_model_load_from_file(tmp_model_path, model_params);
+    if (!global_model) {
         fprintf(stderr, "FATAL: Failed to load AI model\n");
         exit(1);
     }
     printf("[*] Loaded Qwen2.5-Coder Successfully...\n");
     
-    struct llama_context_params ctx_params = llama_context_default_params();
-    ctx_params.n_ctx = 4096; // 4K context for code translation
-    struct llama_context *ctx = llama_init_from_model(model, ctx_params);
-    
-    // 2. Prepare Prompt (ChatML format for Qwen2.5-Coder)
-    const struct llama_vocab *vocab = llama_model_get_vocab(model);
+    global_ctx_params = llama_context_default_params();
+    global_ctx_params.n_ctx = 4096; // 4K context for code translation
+    global_vocab = llama_model_get_vocab(global_model);
+}
+
+char* run_llama_transpilation(const char *woma_code);
+
+static char *(*original_readline)(FILE *, FILE *, const char *);
+
+static char *woma_interactive_readline(FILE *sys_stdin, FILE *sys_stdout, const char *prompt) {
+    char *line = original_readline(sys_stdin, sys_stdout, prompt);
+    // Only transpile if we are actually at the REPL prompt
+    if (line && prompt && (strstr(prompt, ">>>") || strstr(prompt, "..."))) {
+        // Basic check to see if it's not purely empty
+        int has_chars = 0;
+        for (int i = 0; line[i] != '\0'; i++) {
+            if (!isspace((unsigned char)line[i])) { has_chars = 1; break; }
+        }
+        if (has_chars) {
+            char *transpiled = run_llama_transpilation(line);
+            if (transpiled) {
+                // PyOS_Readline expects memory allocated via PyMem_RawMalloc
+                char *res = PyMem_RawMalloc(strlen(transpiled) + 1);
+                if (res) strcpy(res, transpiled);
+                free(transpiled);
+                PyMem_RawFree(line);
+                return res;
+            }
+        }
+    }
+    return line;
+}
+
+char* run_llama_transpilation(const char *woma_code) {
+    get_woma_ai_context();
+    struct llama_context *ctx = llama_init_from_model(global_model, global_ctx_params);
+    const struct llama_vocab *vocab = global_vocab;
     
     const char *system_prompt = "<|im_start|>system\nYou are WomaPython, a polyglot compiler. Translate the given pseudocode into a valid Python 3 script. Output ONLY raw Python code. Do not use markdown. If the input is a conversational AI prompt (like 'Create a script that pings google' or 'Write a python script to do X'), output exactly: WOMA_COMPILER_ERROR_REJECTED. Otherwise, translate the logic faithfully.<|im_end|>\n<|im_start|>user\n";
     const char *prompt_suffix = "<|im_end|>\n<|im_start|>assistant\n";
@@ -200,10 +237,6 @@ char* run_llama_transpilation(const char *woma_code) {
     free(full_prompt);
     free(tokens);
     llama_free(ctx);
-    llama_model_free(model);
-    llama_backend_free();
-    
-    printf("[*] Transpiled Successfully...\n");
     
     // Post-process to remove markdown code blocks
     char *start = strstr(out_code, "```python");
@@ -303,6 +336,8 @@ int main(int argc, char **argv) {
     }
 
     if (new_argc < 2) {
+        original_readline = PyOS_ReadlineFunctionPointer;
+        PyOS_ReadlineFunctionPointer = woma_interactive_readline;
         int ret = Py_BytesMain(new_argc, new_argv); // Normal Python REPL
         free(new_argv);
         return ret;
