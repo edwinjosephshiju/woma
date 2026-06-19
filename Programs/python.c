@@ -117,7 +117,7 @@ char* run_llama_transpilation(const char *woma_code) {
         fprintf(stderr, "FATAL: Failed to load AI model\n");
         exit(1);
     }
-    printf("[*] Loaded Qwen-xxx Sucessfully...\n");
+    printf("[*] Loaded Qwen2.5-Coder Successfully...\n");
     
     struct llama_context_params ctx_params = llama_context_default_params();
     ctx_params.n_ctx = 4096; // 4K context for code translation
@@ -203,7 +203,7 @@ char* run_llama_transpilation(const char *woma_code) {
     llama_model_free(model);
     llama_backend_free();
     
-    printf("[*] transpiled Sucessfully...\n");
+    printf("[*] Transpiled Successfully...\n");
     
     // Post-process to remove markdown code blocks
     char *start = strstr(out_code, "```python");
