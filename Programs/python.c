@@ -137,7 +137,12 @@ char* run_llama_transpilation(const char *woma_code);
 static char *(*original_readline)(FILE *, FILE *, const char *);
 
 static char *woma_interactive_readline(FILE *sys_stdin, FILE *sys_stdout, const char *prompt) {
-    char *line = original_readline(sys_stdin, sys_stdout, prompt);
+    char *line;
+    if (original_readline) {
+        line = original_readline(sys_stdin, sys_stdout, prompt);
+    } else {
+        line = PyOS_StdReadline(sys_stdin, sys_stdout, prompt);
+    }
     // Only transpile if we are actually at the REPL prompt
     if (line && prompt && (strstr(prompt, ">>>") || strstr(prompt, "..."))) {
         // Basic check to see if it's not purely empty
@@ -459,12 +464,20 @@ int main(int argc, char **argv) {
 
         // Phase 6: Final Execution & Memory Safety
         PyRun_SimpleString("import sys, os\nsys.path.insert(0, os.getcwd())\n");
-        FILE *run_file = fopen(py_file, "r");
-        if (run_file) {
-            PyRun_SimpleFile(run_file, py_file);
-            fclose(run_file);
+        
+        // Execute the python_code string directly to avoid FILE* cross-CRT issues on Windows
+        PyObject *m, *d, *v;
+        m = PyImport_AddModule("__main__");
+        if (m == NULL) {
+            PyErr_Print();
         } else {
-            fprintf(stderr, "Error: Could not execute cached %s\n", py_file);
+            d = PyModule_GetDict(m);
+            v = PyRun_String(python_code, Py_file_input, d, d);
+            if (v == NULL) {
+                PyErr_Print();
+            } else {
+                Py_DECREF(v);
+            }
         }
 
         // Cleanup C memory and Python runtime
