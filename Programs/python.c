@@ -163,7 +163,7 @@ static char *woma_interactive_readline(FILE *sys_stdin, FILE *sys_stdout, const 
 char* run_llama_transpilation(const char *woma_code) {
     get_woma_ai_context();
     struct llama_context *ctx = global_ctx;
-    llama_kv_cache_clear(ctx);
+    llama_memory_clear(llama_get_memory(ctx), true);
     const struct llama_vocab *vocab = global_vocab;
 
     const char *system_prompt = "<|im_start|>system\nYou are WomaPython, a polyglot compiler. Translate the given pseudocode into a valid Python 3 script. Output ONLY raw Python code. Do not use markdown. If the input is a conversational AI prompt (like 'Create a script that pings google' or 'Write a python script to do X'), output exactly: WOMA_COMPILER_ERROR_REJECTED. Otherwise, translate the logic faithfully.<|im_end|>\n<|im_start|>user\n";
@@ -200,7 +200,7 @@ char* run_llama_transpilation(const char *woma_code) {
     size_t out_len = 0;
 
     // Token generation loop
-    int n_cur = n_prompt_tokens;
+    uint32_t n_cur = n_prompt_tokens;
     while (n_cur <= global_ctx_params.n_ctx) {
         float *logits = llama_get_logits_ith(ctx, -1);
         int n_vocab = llama_vocab_n_tokens(vocab);
