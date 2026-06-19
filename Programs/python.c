@@ -273,14 +273,38 @@ void inject_dependencies(const char *py_code) {
     Py_DECREF(sys_module);
 }
 
+static void silent_log_callback(enum ggml_log_level level, const char * text, void * user_data) {
+    (void)level;
+    (void)text;
+    (void)user_data;
+}
+
 // ----------------------------------------------------------------------------
 // Main Entrypoint
 // ----------------------------------------------------------------------------
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        return Py_BytesMain(argc, argv); // Normal Python REPL
+    int ai_debug = 0;
+    int new_argc = 0;
+    char **new_argv = malloc((argc + 1) * sizeof(char *));
+    for (int i = 0; i < argc; i++) {
+        if (strcmp(argv[i], "--AI_debug") == 0) {
+            ai_debug = 1;
+        } else {
+            new_argv[new_argc++] = argv[i];
+        }
     }
-    const char *input_file = argv[1];
+    new_argv[new_argc] = NULL;
+    
+    if (!ai_debug) {
+        llama_log_set(silent_log_callback, NULL);
+    }
+
+    if (new_argc < 2) {
+        int ret = Py_BytesMain(new_argc, new_argv); // Normal Python REPL
+        free(new_argv);
+        return ret;
+    }
+    const char *input_file = new_argv[1];
     size_t len = strlen(input_file);
     
     if (len > 5 && strcmp(input_file + len - 5, ".woma") == 0) {
@@ -361,9 +385,12 @@ int main(int argc, char **argv) {
         // Cleanup C memory and Python runtime
         free(python_code);
         Py_Finalize();
+        free(new_argv);
         return 0;
     }
     
     // Normal Python behavior if not a .woma file
-    return Py_BytesMain(argc, argv);
+    int ret = Py_BytesMain(new_argc, new_argv);
+    free(new_argv);
+    return ret;
 }
