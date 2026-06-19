@@ -315,8 +315,31 @@ static void silent_log_callback(enum ggml_log_level level, const char * text, vo
     (void)user_data;
 }
 
+
+static PyObject* set_repl_hook(PyObject *self, PyObject *args) {
+    if (PyOS_ReadlineFunctionPointer != woma_interactive_readline) {
+        original_readline = PyOS_ReadlineFunctionPointer;
+        PyOS_ReadlineFunctionPointer = woma_interactive_readline;
+    }
+    Py_RETURN_NONE;
+}
+
+static PyMethodDef WomaMethods[] = {
+    {"set_repl_hook", set_repl_hook, METH_NOARGS, "Set the AI REPL hook."},
+    {NULL, NULL, 0, NULL}
+};
+
+static struct PyModuleDef womamodule = {
+    PyModuleDef_HEAD_INIT, "_woma", NULL, -1, WomaMethods
+};
+
+PyMODINIT_FUNC PyInit__woma(void) {
+    return PyModule_Create(&womamodule);
+}
+
 // ----------------------------------------------------------------------------
 // Main Entrypoint
+
 // ----------------------------------------------------------------------------
 int main(int argc, char **argv) {
     int ai_debug = 0;
@@ -336,9 +359,31 @@ int main(int argc, char **argv) {
     }
 
     if (new_argc < 2) {
-        original_readline = PyOS_ReadlineFunctionPointer;
-        PyOS_ReadlineFunctionPointer = woma_interactive_readline;
-        int ret = Py_BytesMain(new_argc, new_argv); // Normal Python REPL
+        PyImport_AppendInittab("_woma", PyInit__woma);
+        
+        char *interactive_args[5];
+        interactive_args[0] = new_argv[0];
+        interactive_args[1] = "-i";
+        interactive_args[2] = "-c";
+        interactive_args[3] = "import sys
+"
+                              "sys.stderr.write(f'WomaPython 1.0.0 (AI-Enhanced Runtime) on {sys.platform}\nType \"help\", \"copyright\", \"credits\" or \"license\" for more information.\n')
+"
+                              "try:
+"
+                              "    import readline
+"
+                              "except ImportError:
+"
+                              "    pass
+"
+                              "import _woma
+"
+                              "_woma.set_repl_hook()
+";
+        interactive_args[4] = NULL;
+        
+        int ret = Py_BytesMain(4, interactive_args);
         free(new_argv);
         return ret;
     }
