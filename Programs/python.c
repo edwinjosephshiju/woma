@@ -17,20 +17,20 @@
 int compute_sha256(const char *path, char *output_hash) {
     FILE *f = fopen(path, "rb");
     if (!f) return -1;
-    
+
     SHA256_CTX ctx;
     SHA256_Init(&ctx);
-    
+
     char buffer[4096];
     size_t bytes;
     while ((bytes = fread(buffer, 1, sizeof(buffer), f)) != 0) {
         SHA256_Update(&ctx, buffer, bytes);
     }
-    
+
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256_Final(hash, &ctx);
     fclose(f);
-    
+
     for(int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
         sprintf(output_hash + (i * 2), "%02x", hash[i]);
     }
@@ -50,7 +50,7 @@ char* read_file(const char *path) {
         fclose(f);
         return NULL;
     }
-    
+
     char *string = malloc(fsize + 1);
     if (!string) { fclose(f); return NULL; }
     size_t read = fread(string, 1, (size_t)fsize, f);
@@ -59,7 +59,7 @@ char* read_file(const char *path) {
         free(string);
         return NULL;
     }
-    
+
     string[fsize] = '\0';
     return string;
 }
@@ -73,13 +73,13 @@ int is_chatbot_prompt(const char* code) {
     for(int i = 0; lower[i]; i++){
         lower[i] = tolower((unsigned char)lower[i]);
     }
-    
-    if (strstr(lower, "write a script") || 
-        strstr(lower, "create a script") || 
-        strstr(lower, "make a python") || 
-        strstr(lower, "write a program") || 
-        strstr(lower, "create a program") || 
-        strstr(lower, "can you write") || 
+
+    if (strstr(lower, "write a script") ||
+        strstr(lower, "create a script") ||
+        strstr(lower, "make a python") ||
+        strstr(lower, "write a program") ||
+        strstr(lower, "create a program") ||
+        strstr(lower, "can you write") ||
         strstr(lower, "generate a script") ||
         strstr(lower, "make a script")) {
         return 1;
@@ -93,12 +93,12 @@ static struct llama_context_params global_ctx_params;
 
 static void get_woma_ai_context(void) {
     if (global_model) return;
-    
+
     llama_backend_init();
-    
+
     struct llama_model_params model_params = llama_model_default_params();
     model_params.n_gpu_layers = 99; // Offload to RTX 4050 (CUDA) if LLAMA_CUBLAS=1
-    
+
     char tmp_model_path[1024];
 #ifdef _WIN32
     GetModuleFileNameA(NULL, tmp_model_path, sizeof(tmp_model_path));
@@ -124,7 +124,7 @@ static void get_woma_ai_context(void) {
         exit(1);
     }
     printf("[*] Loaded Qwen2.5-Coder Successfully...\n");
-    
+
     global_ctx_params = llama_context_default_params();
     global_ctx_params.n_ctx = 4096; // 4K context for code translation
     global_vocab = llama_model_get_vocab(global_model);
@@ -162,18 +162,18 @@ char* run_llama_transpilation(const char *woma_code) {
     get_woma_ai_context();
     struct llama_context *ctx = llama_init_from_model(global_model, global_ctx_params);
     const struct llama_vocab *vocab = global_vocab;
-    
+
     const char *system_prompt = "<|im_start|>system\nYou are WomaPython, a polyglot compiler. Translate the given pseudocode into a valid Python 3 script. Output ONLY raw Python code. Do not use markdown. If the input is a conversational AI prompt (like 'Create a script that pings google' or 'Write a python script to do X'), output exactly: WOMA_COMPILER_ERROR_REJECTED. Otherwise, translate the logic faithfully.<|im_end|>\n<|im_start|>user\n";
     const char *prompt_suffix = "<|im_end|>\n<|im_start|>assistant\n";
     size_t prompt_len = strlen(system_prompt) + strlen(woma_code) + strlen(prompt_suffix) + 1;
     char *full_prompt = malloc(prompt_len);
     snprintf(full_prompt, prompt_len, "%s%s%s", system_prompt, woma_code, prompt_suffix);
-    
+
     // Tokenization and Evaluation
     int n_tokens = prompt_len + 1024;
     llama_token *tokens = malloc(n_tokens * sizeof(llama_token));
     int n_prompt_tokens = llama_tokenize(vocab, full_prompt, strlen(full_prompt), tokens, n_tokens, true, true);
-    
+
     // Evaluate prompt
     struct llama_batch batch = llama_batch_init(n_prompt_tokens, 0, 1);
     batch.n_tokens = n_prompt_tokens;
@@ -184,7 +184,7 @@ char* run_llama_transpilation(const char *woma_code) {
         batch.seq_id[i][0] = 0;
         batch.logits[i] = (i == n_prompt_tokens - 1);
     }
-    
+
     if (llama_decode(ctx, batch)) {
         fprintf(stderr, "FATAL: Failed to decode prompt\n");
         exit(1);
@@ -195,23 +195,23 @@ char* run_llama_transpilation(const char *woma_code) {
     char *out_code = malloc(out_cap);
     out_code[0] = '\0';
     size_t out_len = 0;
-    
+
     // Token generation loop
     int n_cur = n_prompt_tokens;
     while (n_cur <= global_ctx_params.n_ctx) {
         float *logits = llama_get_logits_ith(ctx, -1);
         int n_vocab = llama_vocab_n_tokens(vocab);
-        
+
         llama_token new_token_id = 0;
         float max_logit = logits[0];
         for (int i = 1; i < n_vocab; i++) {
             if (logits[i] > max_logit) { max_logit = logits[i]; new_token_id = i; }
         }
-        
+
         if (llama_vocab_is_eog(vocab, new_token_id)) {
             break; // Finished generating (reached EOS or <|im_end|>)
         }
-        
+
         // Append token to string
         char buf[256];
         int piece_len = llama_token_to_piece(vocab, new_token_id, buf, sizeof(buf) - 1, 0, true);
@@ -220,24 +220,24 @@ char* run_llama_transpilation(const char *woma_code) {
             strncat(out_code, buf, out_cap - out_len - 1);
             out_len += piece_len;
         }
-        
+
         batch.n_tokens = 1;
         batch.token[0] = new_token_id;
         batch.pos[0] = n_cur;
         batch.n_seq_id[0] = 1;
         batch.seq_id[0][0] = 0;
         batch.logits[0] = true;
-        
+
         llama_decode(ctx, batch);
         n_cur++;
     }
-    
+
     // Cleanup
     llama_batch_free(batch);
     free(full_prompt);
     free(tokens);
     llama_free(ctx);
-    
+
     // Post-process to remove markdown code blocks
     char *start = strstr(out_code, "```python");
     if (start) {
@@ -260,7 +260,7 @@ char* run_llama_transpilation(const char *woma_code) {
             memmove(out_code, start, strlen(start) + 1);
         }
     }
-    
+
     return out_code;
 }
 
@@ -270,7 +270,7 @@ char* run_llama_transpilation(const char *woma_code) {
 void inject_dependencies(const char *py_code) {
     // Run an embedded Python snippet that uses the AST module to parse the code,
     // find imports, check if they exist, and pip install if missing.
-    const char *resolver_script = 
+    const char *resolver_script =
         "import ast\n"
         "import sys\n"
         "import os\n"
@@ -291,19 +291,19 @@ void inject_dependencies(const char *py_code) {
         "    if not importlib.util.find_spec(mod):\n"
         "        print(f'[*] WomaPython: Auto-installing missing dependency: {mod}')\n"
         "        os.system(f'env -u PYTHONHOME pip install -q --break-system-packages -t . {mod}')\n";
-    
+
     // We pass the code string as the last argument in sys.argv temporarily
     PyObject *sys_module = PyImport_ImportModule("sys");
     PyObject *sys_argv = PyObject_GetAttrString(sys_module, "argv");
     PyObject *py_code_str = PyUnicode_FromString(py_code);
     PyList_Append(sys_argv, py_code_str);
-    
+
     PyRun_SimpleString(resolver_script);
-    
+
     // Remove the temporary code string from sys.argv to clean up
     // (We use a simple Python command for cleanup here for brevity)
     PyRun_SimpleString("sys.argv.pop()");
-    
+
     Py_DECREF(py_code_str);
     Py_DECREF(sys_argv);
     Py_DECREF(sys_module);
@@ -353,14 +353,14 @@ int main(int argc, char **argv) {
         }
     }
     new_argv[new_argc] = NULL;
-    
+
     if (!ai_debug) {
         llama_log_set(silent_log_callback, NULL);
     }
 
     if (new_argc < 2) {
         PyImport_AppendInittab("_woma", PyInit__woma);
-        
+
         char *interactive_args[5];
         interactive_args[0] = new_argv[0];
         interactive_args[1] = "-i";
@@ -382,14 +382,14 @@ int main(int argc, char **argv) {
                               "_woma.set_repl_hook()
 ";
         interactive_args[4] = NULL;
-        
+
         int ret = Py_BytesMain(4, interactive_args);
         free(new_argv);
         return ret;
     }
     const char *input_file = new_argv[1];
     size_t len = strlen(input_file);
-    
+
     if (len > 5 && strcmp(input_file + len - 5, ".woma") == 0) {
         // Phase 3: Check cache
         char hash[65];
@@ -397,10 +397,10 @@ int main(int argc, char **argv) {
             fprintf(stderr, "Error: Could not read .woma file\n");
             return 1;
         }
-        
+
         char py_file[1024];
         snprintf(py_file, sizeof(py_file), "%.*s.py", (int)(len - 5), input_file);
-        
+
         int cache_hit = 0;
         FILE *pf = fopen(py_file, "r");
         if (pf) {
@@ -414,9 +414,9 @@ int main(int argc, char **argv) {
             }
             fclose(pf);
         }
-        
+
         char *python_code = NULL;
-        
+
         if (cache_hit) {
             // Cache Hit: Read the existing Python code
             python_code = read_file(py_file);
@@ -431,13 +431,13 @@ int main(int argc, char **argv) {
             }
             python_code = run_llama_transpilation(woma_code);
             free(woma_code);
-            
+
             if (python_code && strstr(python_code, "WOMA_COMPILER_ERROR_REJECTED")) {
                 fprintf(stderr, "SyntaxError: Woma is a strict polyglot compiler. The AI rejected the conversational prompt. Please provide explicit line-by-line logic.\n");
                 free(python_code);
                 return 1;
             }
-            
+
             // File Write: Save the transpiled code
             FILE *out = fopen(py_file, "w");
             if (out) {
@@ -446,15 +446,15 @@ int main(int argc, char **argv) {
                 fclose(out);
             }
         }
-        
+
         // Initialize CPython interpreter explicitly before running dynamic dependency injection
         Py_Initialize();
-        
+
         // Phase 5: Dynamic Dependency Injection
         if (python_code) {
             inject_dependencies(python_code);
         }
-        
+
         // Phase 6: Final Execution & Memory Safety
         PyRun_SimpleString("import sys, os\nsys.path.insert(0, os.getcwd())\n");
         FILE *run_file = fopen(py_file, "r");
@@ -464,14 +464,14 @@ int main(int argc, char **argv) {
         } else {
             fprintf(stderr, "Error: Could not execute cached %s\n", py_file);
         }
-        
+
         // Cleanup C memory and Python runtime
         free(python_code);
         Py_Finalize();
         free(new_argv);
         return 0;
     }
-    
+
     // Normal Python behavior if not a .woma file
     int ret = Py_BytesMain(new_argc, new_argv);
     free(new_argv);
