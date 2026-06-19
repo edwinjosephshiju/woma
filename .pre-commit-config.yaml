@@ -29,7 +29,7 @@ repos:
       - id: check-yaml
       - id: end-of-file-fixer
         types: [python]
-        exclude: Lib/test/tokenizedata/coding20731.py
+        exclude: (Lib/test/tokenizedata/coding20731.py|^llama\.cpp/)
       - id: trailing-whitespace
         types_or: [c, inc, python, rst]
         exclude: ^llama\.cpp/
