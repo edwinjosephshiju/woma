@@ -2845,8 +2845,8 @@ MODULE__MULTIBYTECODEC_DEPS=$(srcdir)/Modules/cjkcodecs/multibytecodec.h
 llama.cpp/build/src/libllama.a:
 	cd $(srcdir)/llama.cpp && \
 	if test -n "$$CUDA_HOME" || command -v nvcc >/dev/null 2>&1; then \
-		cmake -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DGGML_NATIVE=ON -B build; \
+		cmake -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=ON -DGGML_NATIVE=OFF -B build; \
 	else \
-		cmake -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=OFF -DGGML_NATIVE=ON -B build; \
+		cmake -DBUILD_SHARED_LIBS=OFF -DGGML_CUDA=OFF -DGGML_NATIVE=OFF -B build; \
 	fi && cmake --build build -j$$(nproc)
 
