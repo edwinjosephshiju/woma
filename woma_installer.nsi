@@ -30,5 +30,5 @@ Section "Download AI Model (1.28 GB)" SecModel
   
   DetailPrint "Downloading Qwen2.5-Coder model..."
   ; We use ExecWait to pop up a visible PowerShell window so the user sees the progress
-  ExecWait 'powershell.exe -NoProfile -Command "& { Write-Host ''Downloading WomaPython AI Model (1.28 GB)... Do not close this window.''; Invoke-WebRequest -Uri ''https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q5_k_m.gguf'' -OutFile ''$INSTDIR\model.gguf''; Write-Host ''Download complete!''; Start-Sleep -Seconds 2 }"'
+  ExecWait `powershell.exe -NoProfile -Command "& { Write-Host 'Downloading WomaPython AI Model (1.28 GB)... Do not close this window.'; Invoke-WebRequest -Uri 'https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q5_k_m.gguf' -OutFile '$INSTDIR\model.gguf'; Write-Host 'Download complete!'; Start-Sleep -Seconds 2 }"`
 SectionEnd
