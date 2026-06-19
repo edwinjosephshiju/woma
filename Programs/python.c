@@ -136,12 +136,26 @@ char* run_llama_transpilation(const char *woma_code);
 
 static char *(*original_readline)(FILE *, FILE *, const char *);
 
+static char *fallback_readline(FILE *sys_stdin, FILE *sys_stdout, const char *prompt) {
+    if (sys_stdout && prompt) {
+        fprintf(sys_stdout, "%s", prompt);
+        fflush(sys_stdout);
+    }
+    char buf[4096];
+    if (!fgets(buf, sizeof(buf), sys_stdin)) {
+        return NULL;
+    }
+    char *res = PyMem_RawMalloc(strlen(buf) + 1);
+    if (res) strcpy(res, buf);
+    return res;
+}
+
 static char *woma_interactive_readline(FILE *sys_stdin, FILE *sys_stdout, const char *prompt) {
     char *line;
     if (original_readline) {
         line = original_readline(sys_stdin, sys_stdout, prompt);
     } else {
-        line = PyOS_StdReadline(sys_stdin, sys_stdout, prompt);
+        line = fallback_readline(sys_stdin, sys_stdout, prompt);
     }
     // Only transpile if we are actually at the REPL prompt
     if (line && prompt && (strstr(prompt, ">>>") || strstr(prompt, "..."))) {
