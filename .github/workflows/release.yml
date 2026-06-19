@@ -1,10 +1,6 @@
 name: WomaPython Release Build
 
 on:
-  push:
-    branches:
-      - main
-      - master
   workflow_dispatch:
 
 permissions:
