@@ -88,6 +88,7 @@ int is_chatbot_prompt(const char* code) {
 }
 
 static struct llama_model *global_model = NULL;
+static struct llama_context *global_ctx = NULL;
 static const struct llama_vocab *global_vocab = NULL;
 static struct llama_context_params global_ctx_params;
 
@@ -128,6 +129,7 @@ static void get_woma_ai_context(void) {
     global_ctx_params = llama_context_default_params();
     global_ctx_params.n_ctx = 4096; // 4K context for code translation
     global_vocab = llama_model_get_vocab(global_model);
+    global_ctx = llama_init_from_model(global_model, global_ctx_params);
 }
 
 char* run_llama_transpilation(const char *woma_code);
@@ -160,7 +162,8 @@ static char *woma_interactive_readline(FILE *sys_stdin, FILE *sys_stdout, const 
 
 char* run_llama_transpilation(const char *woma_code) {
     get_woma_ai_context();
-    struct llama_context *ctx = llama_init_from_model(global_model, global_ctx_params);
+    struct llama_context *ctx = global_ctx;
+    llama_kv_cache_clear(ctx);
     const struct llama_vocab *vocab = global_vocab;
 
     const char *system_prompt = "<|im_start|>system\nYou are WomaPython, a polyglot compiler. Translate the given pseudocode into a valid Python 3 script. Output ONLY raw Python code. Do not use markdown. If the input is a conversational AI prompt (like 'Create a script that pings google' or 'Write a python script to do X'), output exactly: WOMA_COMPILER_ERROR_REJECTED. Otherwise, translate the logic faithfully.<|im_end|>\n<|im_start|>user\n";
@@ -236,7 +239,6 @@ char* run_llama_transpilation(const char *woma_code) {
     llama_batch_free(batch);
     free(full_prompt);
     free(tokens);
-    llama_free(ctx);
 
     // Post-process to remove markdown code blocks
     char *start = strstr(out_code, "```python");
@@ -261,6 +263,13 @@ char* run_llama_transpilation(const char *woma_code) {
         }
     }
 
+    size_t final_len = strlen(out_code);
+    if (final_len > 0 && out_code[final_len - 1] != '\n') {
+        if (final_len + 1 < out_cap) {
+            out_code[final_len] = '\n';
+            out_code[final_len + 1] = '\0';
+        }
+    }
     return out_code;
 }
 
