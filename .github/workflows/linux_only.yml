@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   build-linux:
@@ -66,3 +68,38 @@ jobs:
           prerelease: false
           files: |
             artifacts/woma-linux/woma-linux-x86_64.deb
+
+  deploy-apt-repo:
+    name: Deploy APT Repo to Pages
+    needs: [build-linux]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Create APT Repo
+        run: |
+          sudo apt-get update && sudo apt-get install -y dpkg-dev
+          mkdir -p apt-repo/amd64
+          cp artifacts/woma-linux/woma-linux-x86_64.deb apt-repo/amd64/womapython_amd64.deb
+          cd apt-repo
+          dpkg-scanpackages amd64 /dev/null > amd64/Packages
+          gzip -k -9 amd64/Packages
+          echo "<h1>WomaPython APT Repository</h1><p>To install WomaPython, run the following commands on your Ubuntu system:</p><pre>echo \"deb [trusted=yes] https://edwinjosephshiju.github.io/woma/ amd64/\" | sudo tee /etc/apt/sources.list.d/woma.list\nsudo apt update\nsudo apt install womapython</pre>" > index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'apt-repo'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
