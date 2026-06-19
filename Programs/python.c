@@ -366,7 +366,8 @@ int main(int argc, char **argv) {
         interactive_args[1] = "-i";
         interactive_args[2] = "-c";
         interactive_args[3] = "import sys\n"
-                              "sys.stderr.write(f'WomaPython 1.0.0 (AI-Enhanced Runtime) on {sys.platform}\\nType \\"help\\", \\"copyright\\", \\"credits\\" or \\"license\\" for more information.\\n')\n"
+                              "sys.stderr.write(f'WomaPython 1.0.0 (AI-Enhanced Runtime) on {sys.platform}\\n"
+                              "Type \"help\", \"copyright\", \"credits\" or \"license\" for more information.\\n')\n"
                               "try:\n"
                               "    import readline\n"
                               "except ImportError:\n"
