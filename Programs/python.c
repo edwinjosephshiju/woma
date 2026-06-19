@@ -365,22 +365,14 @@ int main(int argc, char **argv) {
         interactive_args[0] = new_argv[0];
         interactive_args[1] = "-i";
         interactive_args[2] = "-c";
-        interactive_args[3] = "import sys
-"
-                              "sys.stderr.write(f'WomaPython 1.0.0 (AI-Enhanced Runtime) on {sys.platform}\nType \"help\", \"copyright\", \"credits\" or \"license\" for more information.\n')
-"
-                              "try:
-"
-                              "    import readline
-"
-                              "except ImportError:
-"
-                              "    pass
-"
-                              "import _woma
-"
-                              "_woma.set_repl_hook()
-";
+        interactive_args[3] = "import sys\n"
+                              "sys.stderr.write(f'WomaPython 1.0.0 (AI-Enhanced Runtime) on {sys.platform}\\nType \\"help\\", \\"copyright\\", \\"credits\\" or \\"license\\" for more information.\\n')\n"
+                              "try:\n"
+                              "    import readline\n"
+                              "except ImportError:\n"
+                              "    pass\n"
+                              "import _woma\n"
+                              "_woma.set_repl_hook()\n";
         interactive_args[4] = NULL;
 
         int ret = Py_BytesMain(4, interactive_args);
