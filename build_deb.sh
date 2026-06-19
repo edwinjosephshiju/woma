@@ -8,12 +8,17 @@ ARCH="amd64"
 
 echo "Creating DEB package structure..."
 mkdir -p $DEB_DIR/DEBIAN
-mkdir -p $DEB_DIR/usr/local
-cp -r $INSTALL_DIR/* $DEB_DIR/usr/local/
+cp -r $INSTALL_DIR/* $DEB_DIR/
 
 # Ensure the executable exists
 if [ ! -f "$DEB_DIR/usr/local/bin/python3.12" ] && [ ! -f "$DEB_DIR/usr/local/bin/woma" ]; then
     echo "Warning: Python executable not found in standard paths."
+fi
+
+# Create woma symlink
+if [ -f "$DEB_DIR/usr/local/bin/python3.12" ] && [ ! -f "$DEB_DIR/usr/local/bin/woma" ]; then
+    echo "Creating woma symlink..."
+    ln -s python3.12 "$DEB_DIR/usr/local/bin/woma"
 fi
 
 cat <<EOF > $DEB_DIR/DEBIAN/control
