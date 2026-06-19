@@ -91,7 +91,7 @@ static struct llama_model *global_model = NULL;
 static const struct llama_vocab *global_vocab = NULL;
 static struct llama_context_params global_ctx_params;
 
-static void get_woma_ai_context() {
+static void get_woma_ai_context(void) {
     if (global_model) return;
     
     llama_backend_init();
@@ -198,7 +198,7 @@ char* run_llama_transpilation(const char *woma_code) {
     
     // Token generation loop
     int n_cur = n_prompt_tokens;
-    while (n_cur <= ctx_params.n_ctx) {
+    while (n_cur <= global_ctx_params.n_ctx) {
         float *logits = llama_get_logits_ith(ctx, -1);
         int n_vocab = llama_vocab_n_tokens(vocab);
         
