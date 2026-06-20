@@ -87,6 +87,25 @@ int is_chatbot_prompt(const char* code) {
     return 0;
 }
 
+static int contains_rejected_error(const char *code) {
+    if (!code) return 0;
+    const char *target = "woma_compiler_error_rejected";
+    int t_len = strlen(target);
+    int c_len = strlen(code);
+    if (c_len < t_len) return 0;
+    for (int i = 0; i <= c_len - t_len; i++) {
+        int match = 1;
+        for (int j = 0; j < t_len; j++) {
+            if (tolower((unsigned char)code[i+j]) != target[j]) {
+                match = 0;
+                break;
+            }
+        }
+        if (match) return 1;
+    }
+    return 0;
+}
+
 static struct llama_model *global_model = NULL;
 static struct llama_context *global_ctx = NULL;
 static const struct llama_vocab *global_vocab = NULL;
@@ -167,6 +186,11 @@ static char *woma_interactive_readline(FILE *sys_stdin, FILE *sys_stdout, const 
         if (has_chars) {
             char *transpiled = run_llama_transpilation(line);
             if (transpiled) {
+                if (contains_rejected_error(transpiled)) {
+                    free(transpiled);
+                    transpiled = malloc(256);
+                    if (transpiled) strcpy(transpiled, "raise SyntaxError('Woma is a strict polyglot compiler. The AI rejected the conversational prompt.')\n");
+                }
                 // PyOS_Readline expects memory allocated via PyMem_RawMalloc
                 char *res = PyMem_RawMalloc(strlen(transpiled) + 1);
                 if (res) strcpy(res, transpiled);
@@ -453,7 +477,7 @@ int main(int argc, char **argv) {
             python_code = run_llama_transpilation(woma_code);
             free(woma_code);
 
-            if (python_code && strstr(python_code, "WOMA_COMPILER_ERROR_REJECTED")) {
+            if (contains_rejected_error(python_code)) {
                 fprintf(stderr, "SyntaxError: Woma is a strict polyglot compiler. The AI rejected the conversational prompt. Please provide explicit line-by-line logic.\n");
                 free(python_code);
                 return 1;
