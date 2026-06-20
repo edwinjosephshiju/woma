@@ -67,25 +67,7 @@ char* read_file(const char *path) {
 // ----------------------------------------------------------------------------
 // Phase 4: Embedded AI Inference (llama.cpp)
 // ----------------------------------------------------------------------------
-int is_chatbot_prompt(const char* code) {
-    char lower[256] = {0};
-    strncpy(lower, code, 255);
-    for(int i = 0; lower[i]; i++){
-        lower[i] = tolower((unsigned char)lower[i]);
-    }
-
-    if (strstr(lower, "write a script") ||
-        strstr(lower, "create a script") ||
-        strstr(lower, "make a python") ||
-        strstr(lower, "write a program") ||
-        strstr(lower, "create a program") ||
-        strstr(lower, "can you write") ||
-        strstr(lower, "generate a script") ||
-        strstr(lower, "make a script")) {
-        return 1;
-    }
-    return 0;
-}
+// `is_chatbot_prompt` removed in favor of AI-based detection
 
 static int contains_rejected_error(const char *code) {
     if (!code) return 0;
@@ -203,6 +185,14 @@ static char *woma_interactive_readline(FILE *sys_stdin, FILE *sys_stdout, const 
     return line;
 }
 
+static void remove_substring(char *str, const char *sub) {
+    size_t len = strlen(sub);
+    char *p = str;
+    while ((p = strstr(p, sub)) != NULL) {
+        memmove(p, p + len, strlen(p + len) + 1);
+    }
+}
+
 char* run_llama_transpilation(const char *woma_code, const char *memory_context, char **new_memory_context) {
     get_woma_ai_context();
     struct llama_context *ctx = global_ctx;
@@ -210,7 +200,8 @@ char* run_llama_transpilation(const char *woma_code, const char *memory_context,
     const struct llama_vocab *vocab = global_vocab;
 
     const char *system_prompt =
-        "<|im_start|>system\nYou are WomaPython, a polyglot compiler. Translate the given pseudocode into a valid Python 3 script. Output ONLY raw Python code. Do not use markdown. If the input is a conversational AI prompt, output exactly: WOMA_COMPILER_ERROR_REJECTED. Otherwise, translate the logic faithfully.\n"
+        "<|im_start|>system\nYou are WomaPython, a polyglot compiler. Translate the given pseudocode, logic descriptions, or mixed language code snippets (C++, JS, SQL, etc.) into a valid Python 3 script. Output ONLY raw Python code. Do not use markdown.\n"
+        "IMPORTANT: You MUST accept and translate any valid pseudocode or mixed logic. ONLY output exactly WOMA_COMPILER_ERROR_REJECTED if the input is purely conversational and contains absolutely zero logical or code instructions (e.g. 'Hello', 'What is the weather?').\n"
         "IMPORTANT: You are compiling a file in chunks. At the end of your code, you MUST add a comment block starting with `# WOMA_MEMORY:` summarizing custom syntax, types, or variables from this chunk for your future self.<|im_end|>\n<|im_start|>user\n";
     const char *prompt_suffix = "<|im_end|>\n<|im_start|>assistant\n";
     size_t prompt_len = strlen(system_prompt) + strlen(woma_code) + strlen(prompt_suffix) + 1;
@@ -292,6 +283,12 @@ char* run_llama_transpilation(const char *woma_code, const char *memory_context,
     free(full_prompt);
     free(tokens);
 
+    // Aggressively strip out rogue tokenizer artifacts
+    remove_substring(out_code, "<|im_end|>");
+    remove_substring(out_code, "<|im_start|>");
+    remove_substring(out_code, "|>");
+    remove_substring(out_code, "<|");
+
     // Post-process to remove markdown code blocks
     char *start = strstr(out_code, "```python");
     if (start) {
@@ -326,6 +323,10 @@ char* run_llama_transpilation(const char *woma_code, const char *memory_context,
     } else {
         if (new_memory_context) *new_memory_context = NULL;
     }
+
+    char *trim = out_code;
+    while(isspace((unsigned char)*trim)) trim++;
+    if (trim != out_code) memmove(out_code, trim, strlen(trim) + 1);
 
     size_t final_len = strlen(out_code);
     if (final_len > 0 && out_code[final_len - 1] != '\n') {
@@ -531,14 +532,7 @@ int main(int argc, char **argv) {
                 strncpy(chunk, curr, chunk_len);
                 chunk[chunk_len] = '\0';
 
-                if (is_chatbot_prompt(chunk)) {
-                    fprintf(stderr, "SyntaxError: Woma is a strict polyglot compiler. Conversational prompts are rejected.\n");
-                    free(chunk);
-                    free(python_code);
-                    free(woma_code);
-                    if (memory_context) free(memory_context);
-                    return 1;
-                }
+                // `is_chatbot_prompt` removed. Allow AI to evaluate.
 
                 char *new_memory_context = NULL;
                 char *transpiled = run_llama_transpilation(chunk, memory_context, &new_memory_context);
