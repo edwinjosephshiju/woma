@@ -4,7 +4,28 @@ WomaPython is a revolutionary AI-powered compiler built directly inside the CPyt
 
 By statically embedding a `1.5GB` language model using the advanced `llama.cpp` neural engine directly into the C executable, Woma operates entirely offline with zero external dependencies, maintaining the structural guarantees and execution speed of standard CPython!
 
-## Requirements
+## Installation (Pre-built Releases)
+
+The easiest way to install WomaPython is by using the pre-built installer packages available on the [Releases page](https://github.com/edwinjosephshiju/woma/releases). The installers will automatically set up Woma and download the required AI models.
+
+### Windows
+1. Download `woma-windows-x86_64-installer.exe` from the latest release.
+2. Run the installer and follow the prompt. It will automatically download the 1.28GB Qwen model and add `woma` to your system `PATH`.
+3. Open a new PowerShell window and run `woma` to start the REPL.
+
+### Linux (Debian/Ubuntu)
+1. Download `woma-linux-x86_64.deb` from the latest release.
+2. Install the package using `apt`:
+   ```bash
+   sudo apt install ./woma-linux-x86_64.deb
+   ```
+3. Run `woma` from your terminal to start the REPL.
+
+## Building from Source
+
+If you prefer to compile Woma natively, follow these instructions.
+
+### Requirements
 *   Linux (or WSL2) environment
 *   `gcc` / `g++` 
 *   `make`
@@ -32,9 +53,9 @@ By statically embedding a `1.5GB` language model using the advanced `llama.cpp` 
     ```
     *Note: During this step, the Woma Makefile will automatically download the LLM `model.gguf` using `curl` if it is not present, invoke CMake to statically build `llama.cpp` with disabled shared-libraries, and statically link the neural network and `libllama.a` into the final `woma` executable.*
 
-## Installation
+## Source Installation
 
-To deploy the Woma transpiler system-wide so you can invoke it from any directory:
+To deploy the Woma transpiler system-wide after building from source:
 
 ```bash
 sudo make install
