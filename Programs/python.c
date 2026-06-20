@@ -209,7 +209,7 @@ char* run_llama_transpilation(const char *woma_code, const char *memory_context,
     llama_memory_clear(llama_get_memory(ctx), true);
     const struct llama_vocab *vocab = global_vocab;
 
-    const char *system_prompt = 
+    const char *system_prompt =
         "<|im_start|>system\nYou are WomaPython, a polyglot compiler. Translate the given pseudocode into a valid Python 3 script. Output ONLY raw Python code. Do not use markdown. If the input is a conversational AI prompt, output exactly: WOMA_COMPILER_ERROR_REJECTED. Otherwise, translate the logic faithfully.\n"
         "IMPORTANT: You are compiling a file in chunks. At the end of your code, you MUST add a comment block starting with `# WOMA_MEMORY:` summarizing custom syntax, types, or variables from this chunk for your future self.<|im_end|>\n<|im_start|>user\n";
     const char *prompt_suffix = "<|im_end|>\n<|im_start|>assistant\n";
@@ -597,7 +597,7 @@ int main(int argc, char **argv) {
 
         // Phase 6: Final Execution & Memory Safety
         PyRun_SimpleString("import sys, os\nsys.path.insert(0, os.getcwd())\n");
-        
+
         // Execute the python_code string directly to avoid FILE* cross-CRT issues on Windows
         PyObject *m, *d, *v;
         m = PyImport_AddModule("__main__");
