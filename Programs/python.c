@@ -151,7 +151,7 @@ static void get_woma_ai_context(void) {
     global_ctx = llama_init_from_model(global_model, global_ctx_params);
 }
 
-char* run_llama_transpilation(const char *woma_code);
+char* run_llama_transpilation(const char *woma_code, const char *memory_context, char **new_memory_context);
 
 static char *(*original_readline)(FILE *, FILE *, const char *);
 
@@ -184,7 +184,7 @@ static char *woma_interactive_readline(FILE *sys_stdin, FILE *sys_stdout, const 
             if (!isspace((unsigned char)line[i])) { has_chars = 1; break; }
         }
         if (has_chars) {
-            char *transpiled = run_llama_transpilation(line);
+            char *transpiled = run_llama_transpilation(line, NULL, NULL);
             if (transpiled) {
                 if (contains_rejected_error(transpiled)) {
                     free(transpiled);
@@ -203,17 +203,26 @@ static char *woma_interactive_readline(FILE *sys_stdin, FILE *sys_stdout, const 
     return line;
 }
 
-char* run_llama_transpilation(const char *woma_code) {
+char* run_llama_transpilation(const char *woma_code, const char *memory_context, char **new_memory_context) {
     get_woma_ai_context();
     struct llama_context *ctx = global_ctx;
     llama_memory_clear(llama_get_memory(ctx), true);
     const struct llama_vocab *vocab = global_vocab;
 
-    const char *system_prompt = "<|im_start|>system\nYou are WomaPython, a polyglot compiler. Translate the given pseudocode into a valid Python 3 script. Output ONLY raw Python code. Do not use markdown. If the input is a conversational AI prompt (like 'Create a script that pings google' or 'Write a python script to do X'), output exactly: WOMA_COMPILER_ERROR_REJECTED. Otherwise, translate the logic faithfully.<|im_end|>\n<|im_start|>user\n";
+    const char *system_prompt = 
+        "<|im_start|>system\nYou are WomaPython, a polyglot compiler. Translate the given pseudocode into a valid Python 3 script. Output ONLY raw Python code. Do not use markdown. If the input is a conversational AI prompt, output exactly: WOMA_COMPILER_ERROR_REJECTED. Otherwise, translate the logic faithfully.\n"
+        "IMPORTANT: You are compiling a file in chunks. At the end of your code, you MUST add a comment block starting with `# WOMA_MEMORY:` summarizing custom syntax, types, or variables from this chunk for your future self.<|im_end|>\n<|im_start|>user\n";
     const char *prompt_suffix = "<|im_end|>\n<|im_start|>assistant\n";
     size_t prompt_len = strlen(system_prompt) + strlen(woma_code) + strlen(prompt_suffix) + 1;
+    if (memory_context) {
+        prompt_len += strlen(memory_context) + 100;
+    }
     char *full_prompt = malloc(prompt_len);
-    snprintf(full_prompt, prompt_len, "%s%s%s", system_prompt, woma_code, prompt_suffix);
+    if (memory_context) {
+        snprintf(full_prompt, prompt_len, "%sPREVIOUS CHUNK CONTEXT:\n%s\n\nCODE TO TRANSLATE:\n%s%s", system_prompt, memory_context, woma_code, prompt_suffix);
+    } else {
+        snprintf(full_prompt, prompt_len, "%sCODE TO TRANSLATE:\n%s%s", system_prompt, woma_code, prompt_suffix);
+    }
 
     // Tokenization and Evaluation
     int n_tokens = prompt_len + 1024;
@@ -304,6 +313,18 @@ char* run_llama_transpilation(const char *woma_code) {
             }
             memmove(out_code, start, strlen(start) + 1);
         }
+    }
+
+    char *memory_ptr = strstr(out_code, "# WOMA_MEMORY:");
+    if (memory_ptr) {
+        if (new_memory_context) {
+            size_t mem_len = strlen(memory_ptr + 14);
+            *new_memory_context = malloc(mem_len + 1);
+            if (*new_memory_context) strcpy(*new_memory_context, memory_ptr + 14);
+        }
+        *memory_ptr = '\0';
+    } else {
+        if (new_memory_context) *new_memory_context = NULL;
     }
 
     size_t final_len = strlen(out_code);
@@ -469,19 +490,93 @@ int main(int argc, char **argv) {
             // Cache Miss: Phase 4
             printf("[*] WomaPython: Cache miss. Initializing AI transpiler...\n");
             char *woma_code = read_file(input_file);
-            if (woma_code && is_chatbot_prompt(woma_code)) {
-                fprintf(stderr, "SyntaxError: Woma is a strict polyglot compiler. Conversational prompts are rejected. Please provide explicit line-by-line logic.\n");
-                free(woma_code);
-                return 1;
-            }
-            python_code = run_llama_transpilation(woma_code);
-            free(woma_code);
 
-            if (contains_rejected_error(python_code)) {
-                fprintf(stderr, "SyntaxError: Woma is a strict polyglot compiler. The AI rejected the conversational prompt. Please provide explicit line-by-line logic.\n");
-                free(python_code);
-                return 1;
+            python_code = malloc(1);
+            python_code[0] = '\0';
+            size_t py_code_len = 0;
+            size_t py_code_cap = 1;
+
+            char *curr = woma_code;
+            size_t remaining = woma_code ? strlen(woma_code) : 0;
+            size_t MAX_CHUNK_SIZE = 8000;
+
+            char *memory_context = NULL;
+
+            while (remaining > 0) {
+                size_t chunk_len = remaining;
+                if (chunk_len > MAX_CHUNK_SIZE) {
+                    chunk_len = MAX_CHUNK_SIZE;
+                    char *last_double_nl = NULL;
+                    for (size_t i = chunk_len; i > 0; i--) {
+                        if (curr[i] == '\n' && curr[i-1] == '\n') {
+                            last_double_nl = curr + i;
+                            break;
+                        }
+                    }
+                    if (last_double_nl) {
+                        chunk_len = last_double_nl - curr;
+                    } else {
+                        char *last_nl = NULL;
+                        for (size_t i = chunk_len; i > 0; i--) {
+                            if (curr[i] == '\n') {
+                                last_nl = curr + i;
+                                break;
+                            }
+                        }
+                        if (last_nl) chunk_len = last_nl - curr;
+                    }
+                }
+
+                char *chunk = malloc(chunk_len + 1);
+                strncpy(chunk, curr, chunk_len);
+                chunk[chunk_len] = '\0';
+
+                if (is_chatbot_prompt(chunk)) {
+                    fprintf(stderr, "SyntaxError: Woma is a strict polyglot compiler. Conversational prompts are rejected.\n");
+                    free(chunk);
+                    free(python_code);
+                    free(woma_code);
+                    if (memory_context) free(memory_context);
+                    return 1;
+                }
+
+                char *new_memory_context = NULL;
+                char *transpiled = run_llama_transpilation(chunk, memory_context, &new_memory_context);
+                free(chunk);
+
+                if (memory_context) free(memory_context);
+                memory_context = new_memory_context;
+
+                if (contains_rejected_error(transpiled)) {
+                    fprintf(stderr, "SyntaxError: Woma is a strict polyglot compiler. The AI rejected the conversational prompt.\n");
+                    free(transpiled);
+                    free(python_code);
+                    free(woma_code);
+                    if (memory_context) free(memory_context);
+                    return 1;
+                }
+
+                size_t t_len = transpiled ? strlen(transpiled) : 0;
+                if (t_len > 0) {
+                    if (py_code_len + t_len + 2 > py_code_cap) {
+                        py_code_cap = (py_code_len + t_len) * 2 + 2;
+                        python_code = realloc(python_code, py_code_cap);
+                    }
+                    strcpy(python_code + py_code_len, transpiled);
+                    py_code_len += t_len;
+                    if (python_code[py_code_len - 1] != '\n') {
+                        python_code[py_code_len] = '\n';
+                        python_code[py_code_len + 1] = '\0';
+                        py_code_len++;
+                    }
+                }
+                free(transpiled);
+
+                curr += chunk_len;
+                remaining -= chunk_len;
             }
+            if (memory_context) free(memory_context);
+            if (woma_code) free(woma_code);
 
             // File Write: Save the transpiled code
             FILE *out = fopen(py_file, "w");
